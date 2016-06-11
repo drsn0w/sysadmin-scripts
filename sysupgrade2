@@ -1,0 +1,115 @@
+#!/usr/bin/python
+
+# Required imports
+import os
+import sys
+import subprocess
+import time
+import argparse
+parser = argparse.ArgumentParser(description='Performs a system upgrade after a snapper snapshot, and regenerates initramfs and grub configuration, if enabled')
+
+
+# If you use a pacman/AUR helper, put its name here
+# Note: it must use pacman-like syntax by default, or else you'll have to edit the script
+PACMAN_COMMAND = "yaourt"
+
+# Configuration options
+SNAPPER_ENABLED = True                      # Run a snapper snapshot before system upgrade?
+SNAPPER_CONFIG_NAME = "root"                # Name of the snapper config to use when taking snapshots, if enabled
+MKINITCPIO_ENABLED = True                   # Rebuild the initramfs after the system upgrade?
+MKINITCPIO_LINUX_VARIANT = "linux-zen"      # Name of initramfs to rebuild, if enabled (e.g. linux-zen, linux-grsec)
+MKINITCPIO_SUPPRESS_OUTPUT = True           # Suppress output from 'mkinitcpio', if enabled
+GRUB_CFG_ENABLED = True                     # Regenerate grub.cfg after system upgrades
+GRUB_CFG_SUPPRESS_OUTPUT = True             # Suppress output from 'grub-mkconfig', if enabled
+GRUB_CFG_FILE_PATH = "/boot/grub/grub.cfg"  # Path of grub.cfg to be regenerated, if enabled
+
+# Internal script config options. Don't change these unless you know what you're doing
+arch_checkupdates_path = "/usr/bin/checkupdates"
+
+# Text colors, no need to fiddle here
+COLOR_OK_BLUE = '\033[94m'
+COLOR_OK_GREEN = '\033[92m'
+COLOR_WARN = '\033[93m'
+COLOR_FAIL = '\033[91m'
+COLOR_BOLD = '\033[1m'
+COLOR_RESET = '\033[0m'
+
+# Let's get some arguments!
+parser.add_argument('-s', action='store_true', dest='snap_yes', default=False, help='enable Snapper snapshots')
+parser.add_argument('-sN', action='store_true', dest='snap_no', default=False, help='disable Snapper snapshots')
+parser.add_argument('-m', action='store_true', dest='cpio_yes', default=False, help='enable rebuilding the initramfs')
+parser.add_argument('-mN', action='store_true', dest='cpio_no', default=False, help='disable rebuilding the initramfs')
+parser.add_argument('-g', action="store_true", dest='grub_yes', default=False, help='enable generating the GRUB configuration file')
+parser.add_argument('-gN', action="store_true", dest='grub_no', default=False, help='disable generating the GRUB configuration file')
+parser.add_argument('--cpio-preset', action='store', dest='mkinitcpio_preset', help='override name of mkinitcpio preset')
+parser.add_argument('--grub-cfg', action="store", dest='grub_cfg_path', help='override GRUB configuration file path')
+_ar = parser.parse_args()
+
+# Let's parse some arguments!
+# First look for conflicting shit
+if _ar.snap_yes is True and _ar.snap_no is True:
+    print(COLOR_BOLD + COLOR_WARN + "Both Snapper flags passed, defaulting to value found in configuration." + COLOR_RESET)
+    _ar.snap_yes = False
+    _ar.snap_no = False
+if _ar.cpio_yes is True and _ar.cpio_no is True:
+    print(COLOR_BOLD + COLOR_WARN + "Both mkinitcpio flags passed, defaulting to value found in configuration." + COLOR_RESET)
+    _ar.cpio_yes = False
+    _ar.cpio_no = False
+if _ar.grub_yes is True and _ar.grub_no is True:
+    print(COLOR_BOLD + COLOR_WARN + "Both GRUB configuration flags passed, defaulting to value found in configuration." + COLOR_RESET)
+    _ar.grub_yes= False
+    _ar.grub_no = False
+# Now we can actually parse our shit!
+if _ar.snap_yes is True: SNAPPER_ENABLED = True
+if _ar.snap_no is True: SNAPPER_ENABLED = False
+if _ar.cpio_yes is True: MKINITCPIO_ENABLED = True
+if _ar.cpio_no is True: MKINITCPIO_ENABLED = False
+if _ar.grub_yes is True: GRUB_CFG_ENABLED = True
+if _ar.grub_no is True: GRUB_CFG_ENABLED = False
+if _ar.mkinitcpio_preset is not None: MKINITCPIO_LINUX_VARIANT = _ar.mkinitcpio_preset
+if _ar.grub_cfg_path is not None: GRUB_CFG_FILE_PATH = _ar.grub_cfg_path
+
+
+
+# # First, we have to safely check for updates without making changes to our system using checkupdates
+print(COLOR_BOLD + "Checking for updates..." + COLOR_RESET)
+if not os.path.exists(arch_checkupdates_path):
+    print(COLOR_BOLD + COLOR_FAIL + arch_checkupdates_path + " does not exist. Cannot continue." + COLOR_RESET)
+    sys.exit(1)
+
+_check_updates_out_bytes = subprocess.check_output([arch_checkupdates_path])
+_check_update_out_text = _check_updates_out_bytes.decode('utf-8')
+
+# If there's no updates, do nothing!
+if _check_update_out_text is "":
+    print(COLOR_BOLD + COLOR_OK_GREEN + "No updates found!" + COLOR_RESET)
+    sys.exit(0)
+else:
+    print(COLOR_BOLD + COLOR_OK_GREEN + "Updates found!" + COLOR_RESET)
+
+    # First, we need to take a snapper snapshot (if enabled)
+    if SNAPPER_ENABLED:
+        _snapper_date = time.strftime("%c")
+        _snapper_snap_name = "System Upgrade " + _snapper_date
+        _snapper_command = 'snapper -c ' + SNAPPER_CONFIG_NAME + ' create --description "' + _snapper_snap_name + '" -c number'
+        print(COLOR_BOLD + "Taking snapshot " + COLOR_OK_BLUE + _snapper_snap_name + COLOR_RESET + COLOR_BOLD + "..." + COLOR_RESET)
+        os.system(_snapper_command)
+
+    # Next, rebuild initcpio (if enabled)
+    if MKINITCPIO_ENABLED:
+        print(COLOR_BOLD + "Rebuilding " + COLOR_OK_BLUE + MKINITCPIO_LINUX_VARIANT + COLOR_RESET + COLOR_BOLD + " initramfs..." + COLOR_RESET)
+        if MKINITCPIO_SUPPRESS_OUTPUT:
+            _mkinitcpio_command = "sudo mkinitcpio -p " + MKINITCPIO_LINUX_VARIANT + " &> /dev/null"
+        else:
+            _mkinitcpio_command = "sudo mkinitcpio -p " + MKINITCPIO_LINUX_VARIANT
+        os.system(_mkinitcpio_command)
+
+    # Finally, regenerate grub.cfg (if enabled)
+    if GRUB_CFG_ENABLED:
+        print(COLOR_BOLD + "Generating GRUB configuration " + COLOR_OK_BLUE + GRUB_CFG_FILE_PATH + COLOR_RESET + COLOR_BOLD + "..." + COLOR_RESET)
+        if GRUB_CFG_SUPPRESS_OUTPUT:
+            _grub_cfg_command = "sudo grub-mkconfig -o " + GRUB_CFG_FILE_PATH + " &> /dev/null"
+        else:
+            _grub_cfg_command = "sudo grub-mkconfig -o " + GRUB_CFG_FILE_PATH
+        os.system(_grub_cfg_command)
+    print(COLOR_BOLD + COLOR_OK_GREEN + "Done!" + COLOR_RESET)
