@@ -2,14 +2,17 @@
 
 This is a collection of handwritten scripts that I use on my various machines to make day-to-day system administration tasks significantly easier and more streamlined.
 
-## sysupgrade2 1.0.1
+## sysupgrade2 1.0.2
 `sysupgrade2` is a simple script for (but not limited to) Arch Linux on BTRFS installations. It checks for updates, and if found, takes a snapshot using Snapper, rebuilds the initramfs, and regenerates the Grub configuration file.
+
+This script is written in Python 3, and all configuration options are done at the beginning of the script
 
 ```
 usage: sysupgrade2 [-h] [-s] [-sN] [-m] [-mN] [-g] [-gN]
                    [--snapper-config SNAPPER_CONFIG]
                    [--cpio-preset MKINITCPIO_PRESET]
-                   [--grub-cfg GRUB_CFG_PATH] [--version]
+                   [--grub-cfg GRUB_CFG_PATH] [--dangerous-allow-root]
+                   [--version]
 
 Performs a system upgrade after a snapper snapshot, and regenerates initramfs
 and grub configuration, if enabled
@@ -28,5 +31,8 @@ optional arguments:
                         override name of mkinitcpio preset
   --grub-cfg GRUB_CFG_PATH
                         override GRUB configuration file path
+  --dangerous-allow-root
+                        does not disable script if running as root. NOT
+                        RECOMMENDED!
   --version             show program's version number and exit
 ```

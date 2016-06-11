@@ -11,7 +11,8 @@ parser = argparse.ArgumentParser(description='Performs a system upgrade after a 
 
 # If you use a pacman/AUR helper, put its name here
 # Note: it must use pacman-like syntax by default, or else you'll have to edit the script
-PACMAN_COMMAND = "yaourt"
+PACMAN_COMMAND = "pacman"
+
 
 # Configuration options
 SNAPPER_ENABLED = True                      # Run a snapper snapshot before system upgrade?
@@ -35,7 +36,7 @@ COLOR_BOLD = '\033[1m'
 COLOR_RESET = '\033[0m'
 
 # Version string
-_sysupgrade2_version_string = "sysupgrade2 by drsn0w, v1.0.1"
+_sysupgrade2_version_string = "sysupgrade2 by drsn0w, v1.0.2"
 
 # Let's get some arguments!
 parser.add_argument('-s', action='store_true', dest='snap_yes', default=False, help='enable Snapper snapshots')
@@ -47,6 +48,7 @@ parser.add_argument('-gN', action="store_true", dest='grub_no', default=False, h
 parser.add_argument('--snapper-config', action='store', dest='snapper_config', help='override name of Snapper config')
 parser.add_argument('--cpio-preset', action='store', dest='mkinitcpio_preset', help='override name of mkinitcpio preset')
 parser.add_argument('--grub-cfg', action="store", dest='grub_cfg_path', help='override GRUB configuration file path')
+parser.add_argument('--dangerous-allow-root', action='store_true', dest='allow_root', default=False, help='does not disable script if running as root. NOT RECOMMENDED!')
 parser.add_argument('--version', action='version', version=_sysupgrade2_version_string)
 _ar = parser.parse_args()
 
@@ -74,6 +76,10 @@ if _ar.grub_no is True: GRUB_CFG_ENABLED = False
 if _ar.snapper_config is not None: SNAPPER_CONFIG_NAME = _ar.snapper_config
 if _ar.mkinitcpio_preset is not None: MKINITCPIO_LINUX_VARIANT = _ar.mkinitcpio_preset
 if _ar.grub_cfg_path is not None: GRUB_CFG_FILE_PATH = _ar.grub_cfg_path
+if _ar.allow_root is not True:
+    if os.geteuid() == 0:
+        print(COLOR_BOLD + COLOR_FAIL + "ROOT USER DETECTED! This script is not intended to be run as root and obtains root internally when needed using sudo. Exiting!" + COLOR_RESET)
+        sys.exit(1)
 
 
 
