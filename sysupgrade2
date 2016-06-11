@@ -34,6 +34,9 @@ COLOR_FAIL = '\033[91m'
 COLOR_BOLD = '\033[1m'
 COLOR_RESET = '\033[0m'
 
+# Version string
+_sysupgrade2_version_string = "sysupgrade2 by drsn0w, v1.0.1"
+
 # Let's get some arguments!
 parser.add_argument('-s', action='store_true', dest='snap_yes', default=False, help='enable Snapper snapshots')
 parser.add_argument('-sN', action='store_true', dest='snap_no', default=False, help='disable Snapper snapshots')
@@ -41,8 +44,10 @@ parser.add_argument('-m', action='store_true', dest='cpio_yes', default=False, h
 parser.add_argument('-mN', action='store_true', dest='cpio_no', default=False, help='disable rebuilding the initramfs')
 parser.add_argument('-g', action="store_true", dest='grub_yes', default=False, help='enable generating the GRUB configuration file')
 parser.add_argument('-gN', action="store_true", dest='grub_no', default=False, help='disable generating the GRUB configuration file')
+parser.add_argument('--snapper-config', action='store', dest='snapper_config', help='override name of Snapper config')
 parser.add_argument('--cpio-preset', action='store', dest='mkinitcpio_preset', help='override name of mkinitcpio preset')
 parser.add_argument('--grub-cfg', action="store", dest='grub_cfg_path', help='override GRUB configuration file path')
+parser.add_argument('--version', action='version', version=_sysupgrade2_version_string)
 _ar = parser.parse_args()
 
 # Let's parse some arguments!
@@ -66,6 +71,7 @@ if _ar.cpio_yes is True: MKINITCPIO_ENABLED = True
 if _ar.cpio_no is True: MKINITCPIO_ENABLED = False
 if _ar.grub_yes is True: GRUB_CFG_ENABLED = True
 if _ar.grub_no is True: GRUB_CFG_ENABLED = False
+if _ar.snapper_config is not None: SNAPPER_CONFIG_NAME = _ar.snapper_config
 if _ar.mkinitcpio_preset is not None: MKINITCPIO_LINUX_VARIANT = _ar.mkinitcpio_preset
 if _ar.grub_cfg_path is not None: GRUB_CFG_FILE_PATH = _ar.grub_cfg_path
 
