@@ -1,5 +1,4 @@
 # sysadmin-scripts
-## by drsn0w
 
 This is a collection of handwritten scripts that I use on my various machines to make day-to-day system administration tasks significantly easier and more streamlined.
 
